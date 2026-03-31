@@ -15,10 +15,23 @@ Rules: mid-tone colors (L 35-65%). Healthcare=teal/blue. Finance=navy/dark blue.
 async function callAnthropic(key: string, prompt: string) {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
-    body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 150, system: SYSTEM_PROMPT, messages: [{ role: "user", content: prompt }] }),
+    headers: { 
+      "Content-Type": "application/json", 
+      "x-api-key": key, 
+      "anthropic-version": "2023-06-01", 
+      "anthropic-dangerous-direct-browser-access": "true" 
+    },
+    body: JSON.stringify({ 
+      model: "claude-3-5-haiku-20241022", 
+      max_tokens: 150, 
+      system: SYSTEM_PROMPT, 
+      messages: [{ role: "user", content: prompt }] 
+    }),
   });
-  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || `Error ${res.status}`); }
+  if (!res.ok) { 
+    const e = await res.json(); 
+    throw new Error(e.error?.message || `Error ${res.status}`); 
+  }
   return (await res.json()).content?.[0]?.text || "";
 }
 
@@ -26,19 +39,32 @@ async function callOpenAI(key: string, prompt: string) {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
-    body: JSON.stringify({ model: "gpt-4o-mini", max_tokens: 150, messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }] }),
+    body: JSON.stringify({ 
+      model: "gpt-4o-mini", 
+      max_tokens: 150, 
+      messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }] 
+    }),
   });
-  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || `Error ${res.status}`); }
+  if (!res.ok) { 
+    const e = await res.json(); 
+    throw new Error(e.error?.message || `Error ${res.status}`); 
+  }
   return (await res.json()).choices?.[0]?.message?.content || "";
 }
 
 async function callGemini(key: string, prompt: string) {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${prompt}` }] }], generationConfig: { maxOutputTokens: 150 } }),
+    body: JSON.stringify({ 
+      contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${prompt}` }] }], 
+      generationConfig: { maxOutputTokens: 150 } 
+    }),
   });
-  if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || `Error ${res.status}`); }
+  if (!res.ok) { 
+    const e = await res.json(); 
+    throw new Error(e.error?.message || `Error ${res.status}`); 
+  }
   return (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
@@ -90,10 +116,18 @@ export const AIColorSuggester = ({ onColorSuggested, accent0 }: Props) => {
       if (provider === "anthropic") raw = await callAnthropic(key, prompt);
       else if (provider === "openai") raw = await callOpenAI(key, prompt);
       else raw = await callGemini(key, prompt);
-      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
-      if (!parsed.hex || !/^#[0-9A-Fa-f]{6}$/.test(parsed.hex)) throw new Error("Unexpected response. Try again.");
-      setResult({ hex: parsed.hex.toUpperCase(), reason: parsed.reason });
+      
+      // Robust JSON extraction: Find the first { and last }
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error("Unexpected response format. Try again.");
+      
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (!parsed.hex || !/^#[0-9A-Fa-f]{6}$/.test(parsed.hex)) {
+        throw new Error("Invalid color code received. Try again.");
+      }
+      setResult({ hex: parsed.hex.toUpperCase(), reason: parsed.reason || "AI Suggested Color" });
     } catch (e: any) {
+      console.error("AI Suggestion failed:", e);
       setError(e.message?.includes("JSON") ? "Unexpected response. Try again." : (e.message || "Something went wrong."));
     } finally { setLoading(false); }
   };
