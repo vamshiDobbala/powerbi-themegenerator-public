@@ -60,7 +60,10 @@ async function callGemini(key: string, prompt: string) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
       contents: [{ parts: [{ text: `${SYSTEM_PROMPT}\n\n${prompt}` }] }], 
-      generationConfig: { maxOutputTokens: 150 } 
+      generationConfig: { 
+        maxOutputTokens: 256,
+        thinkingConfig: { thinkingBudget: 0 }
+      } 
     }),
   });
   
@@ -68,7 +71,13 @@ async function callGemini(key: string, prompt: string) {
   if (!res.ok) { 
     throw new Error(data.error?.message || `Error ${res.status}`); 
   }
-  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+  // Gemini 2.5 may return multiple parts (thinking + answer). 
+  // Find the last non-thought part which contains the actual response.
+  const parts = data.candidates?.[0]?.content?.parts || [];
+  for (let i = parts.length - 1; i >= 0; i--) {
+    if (!parts[i].thought && parts[i].text) return parts[i].text;
+  }
+  return parts[0]?.text || "";
 }
 
 const EXAMPLES = ["Healthcare", "Finance", "Marketing", "Executive"];
