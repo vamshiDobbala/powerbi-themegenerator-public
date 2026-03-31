@@ -28,11 +28,12 @@ async function callAnthropic(key: string, prompt: string) {
       messages: [{ role: "user", content: prompt }] 
     }),
   });
+  
+  const data = await res.json();
   if (!res.ok) { 
-    const e = await res.json(); 
-    throw new Error(e.error?.message || `Error ${res.status}`); 
+    throw new Error(data.error?.message || `Error ${res.status}`); 
   }
-  return (await res.json()).content?.[0]?.text || "";
+  return data.content?.[0]?.text || "";
 }
 
 async function callOpenAI(key: string, prompt: string) {
@@ -45,11 +46,12 @@ async function callOpenAI(key: string, prompt: string) {
       messages: [{ role: "system", content: SYSTEM_PROMPT }, { role: "user", content: prompt }] 
     }),
   });
+  
+  const data = await res.json();
   if (!res.ok) { 
-    const e = await res.json(); 
-    throw new Error(e.error?.message || `Error ${res.status}`); 
+    throw new Error(data.error?.message || `Error ${res.status}`); 
   }
-  return (await res.json()).choices?.[0]?.message?.content || "";
+  return data.choices?.[0]?.message?.content || "";
 }
 
 async function callGemini(key: string, prompt: string) {
@@ -61,11 +63,12 @@ async function callGemini(key: string, prompt: string) {
       generationConfig: { maxOutputTokens: 150 } 
     }),
   });
+  
+  const data = await res.json();
   if (!res.ok) { 
-    const e = await res.json(); 
-    throw new Error(e.error?.message || `Error ${res.status}`); 
+    throw new Error(data.error?.message || `Error ${res.status}`); 
   }
-  return (await res.json()).candidates?.[0]?.content?.parts?.[0]?.text || "";
+  return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
 }
 
 const EXAMPLES = ["Healthcare", "Finance", "Marketing", "Executive"];
